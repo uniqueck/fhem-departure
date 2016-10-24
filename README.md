@@ -1,4 +1,4 @@
-# Departure Monitor for FHEM
+# Departure monitor for FHEM
 Departure is a fhem modul, which creates readings for the next departures of a station.
 
 ## How to install
