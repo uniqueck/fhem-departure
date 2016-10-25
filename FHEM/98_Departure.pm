@@ -221,14 +221,14 @@ sub Departure_GetDeparture($) {
     	}
 
 	my $param = {
-    		url        => "$hash->{BASE_URL}/departure?from=" . $departure . "&providerName=" . $provider . "&limit=" . $max_readings,
+    		url        => "$hash->{BASE_URL}/departure?from=" . $departure . "&provider=" . $provider . "&limit=" . $max_readings,
     		timeout    => 30,
     		hash       => $hash,
     		method     => "GET",
     		header     => "User-Agent: fhem\r\nAccept: application/json",
     		callback   =>  \&Departure_ParseDeparture
   	};
-	Log3 ($hash, 4, "$hash->{BASE_URL}/departure?from=" . $departure . "&providerName=" . $provider . "&limit=" . $max_readings);
+	Log3 ($hash, 4, "$hash->{BASE_URL}/departure?from=" . $departure . "&provider=" . $provider . "&limit=" . $max_readings);
 	HttpUtils_NonblockingGet($param);
 }
 
@@ -238,10 +238,23 @@ sub Departure_ParseDeparture(@) {
 	my $name = $hash->{NAME};
 	my $timeoffset = AttrVal($name, "departure_time_to_go_to_station",0); 	
 	my $res;
-	fhem("deletereading $hash->{NAME} departure.*", 1);	
-	if ($err) {
-    		Log3 ($hash, 2, "$hash->{NAME}: error $err retriving departure");
-  	} elsif ($data) {
+	fhem("deletereading $hash->{NAME} departure.*", 1);
+	Log3 ($hash, 4, "$hash->{NAME}: status code $param->{code}");	
+	if ($param->{code} != 200) {
+		readingsBeginUpdate($hash);
+		readingsBulkUpdate( $hash, "departure_error_http_status_code", $param->{code});								
+		readingsBulkUpdate( $hash, "departure_error_url", $param->{url});		
+		if ($err) {
+			Log3 ($hash, 2, "$hash->{NAME}: error $err retriving departure");
+			readingsBulkUpdate( $hash, "departure_error_http_status_text", $err);		
+		} elsif ($data) {
+			Log3 ($hash, 2, "$hash->{NAME}: error $data retriving departure");
+			readingsBulkUpdate( $hash, "departure_error_http_status_text", $data);		
+		}
+		readingsEndUpdate($hash,1);
+		$hash->{STATE}='error' if($hash->{STATE} eq 'initialized' || $hash->{STATE} eq 'active');
+	
+    	} elsif ($data) {
 		Log3 ($hash, 5, "$hash->{NAME}: departure response data $data");
 		eval { 
       			$res = JSON->new->utf8(1)->decode($data);
@@ -264,10 +277,9 @@ sub Departure_ParseDeparture(@) {
 				$i++;			
 			}
 			readingsEndUpdate($hash,1); 
-    		}	
+    		}
+		$hash->{STATE}='active' if($hash->{STATE} eq 'initialized' || $hash->{STATE} eq 'error');	
 	}
-
-	$hash->{STATE}='active' if($hash->{STATE} eq 'initialized');
 	
 	return undef;
 }
