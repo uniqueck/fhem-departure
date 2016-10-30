@@ -5,11 +5,6 @@
 #
 #     Calls the URL: http://transportrest-sbiermann.rhcloud.com/departure?from=<stationId>&limit=<departure_max_readings>
 #     with the given attributes. 
-#     S=departure will be replace with "S=".AttrVal($name, "dbplan_departure", undef)
-#     Z=destination will be replace with "S=".AttrVal($name, "dbplan_destination", undef)
-#     See also the domumentation for external calls
-#     Internet-Reiseauskunft der Deutschen Bahn AG
-#     Externe Aufrufparameter und RÃ¼ckgabeparameter an externe Systeme
 ##############################################################################
 
 use strict;                          
@@ -272,7 +267,7 @@ sub Departure_ParseDeparture(@) {
 				readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});					 		
 				if (defined($timeoffset)) {
 					my $temp = $item->{departureTimeInMinutes} - $timeoffset;
-					readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutesWithGoToStation", $temp);							
+					readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);							
 				} 				
 				$i++;			
 			}
