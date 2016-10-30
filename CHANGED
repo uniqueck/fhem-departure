@@ -1,6 +1,3 @@
 FHEM Departure last change:
-2016-10-26
- - use http status code to check for error
-
-set readings on error case
-set state to error on http status code != 200
+2016-10-30
+ - rename reading
