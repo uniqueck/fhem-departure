@@ -231,7 +231,7 @@ sub Departure_ParseDeparture(@) {
 	my ($param, $err, $data) = @_;
 	my $hash = $param->{hash};
 	my $name = $hash->{NAME};
-	my $timeoffset = AttrVal($name, "departure_time_to_go_to_station",0); 	
+	my $timeoffset = AttrVal($name, "departure_time_to_go_to_station",undef); 	
 	my $res;
 	fhem("deletereading $hash->{NAME} departure.*", 1);
 	Log3 ($hash, 4, "$hash->{NAME}: status code $param->{code}");	
