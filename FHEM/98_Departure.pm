@@ -107,42 +107,45 @@ sub Departure_Get($@) {
 sub Departure_Find_Stations($$) {
 	
 	my ($hash, $val) = @_;
+	my $name = $hash->{NAME};
 	my $res;
-	my $result;
+	my $result = "";
 
 	my $param = {
-		url        => "$hash->{BASE_URL}/station/suggest?q=" . $val . "&provider=" . AttrVal($hash->{NAME},"departure_provider",0),
+		url        => "$hash->{BASE_URL}/station/suggest?q=" . $val . "&provider=" . AttrVal($hash->{NAME},"departure_provider",0) . "&locationType=STATION",
 		timeout    => 30,
 		hash       => $hash,
 		method     => "GET",
 		header     => "User-Agent: fhem\r\nAccept: application/json",
 	};
-	Log3 ($hash, 4, "$hash->{NAME}: get find stations request " . $param->{url});
+	Log3 $name, 4, "$name: get find stations request " . $param->{url};
 	my ($err, $data) = HttpUtils_BlockingGet($param);
-	Log3 ($hash, 4, "$hash->{NAME}: got find stations response");
-	if ($err) {
-		Log3 ($hash, 2, "$hash->{NAME}: error $err retriving stations");
-	} elsif ($data) {
-		Log3 ($hash, 5, "$hash->{NAME}: stations response data $data");
+	Log3 ($hash, 4, "$hash->{NAME}: status code $param->{code}");	
+	if ($param->{code} != 200) {
+		if ($err) {
+			Log3 ($hash, 2, "$hash->{NAME}: error $err retriving stations");
+		} elsif ($data) {		
+			Log3 ($hash, 2, "$hash->{NAME}: error $data retriving stations");
+		}		
+	} else {
+		Log3 ($hash, 4, "$name: got find stations response $data");
 		eval { 
 			$res = JSON->new->utf8(1)->decode($data);
 		};
 		if ($@) {
 			Log3 ($hash, 2, "$hash->{NAME}: error decoding stations response $@");
 		} else {
-			$result = undef;		
-			Log3 ($hash, 5, "$hash->{NAME}: stations response data $res->{locations}");			
-			foreach my $item (@{$res->{locations}}) {
+			Log3 ($hash, 5, "$hash->{NAME}: stations response data $res");			
+			foreach my $item (@{$res}) {
 				# nur solche zulassen, welche auf stationen sind
 				if ($item->{type} eq 'STATION') {
 					my $station = Encode::encode('UTF-8',$item->{place} . "-" . $item->{name});						
 					Log3 ($hash, 5, "$hash->{NAME}: stations $item->{type} $item->{name}");					
 					$result .= $item->{id} ."\t" . $station . "\n";				
 				}
-			
-			} 
-		}
-	}
+			} # end foreach 
+		} # end else
+	} # end else	
   return $result;
 
 }
