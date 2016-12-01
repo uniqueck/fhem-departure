@@ -268,6 +268,7 @@ sub Departure_ParseDeparture(@) {
 				readingsBulkUpdate( $hash, "departure_" . $i . "_time", $item->{departureTime});
 				readingsBulkUpdate( $hash, "departure_" . $i . "_delay", $item->{departureDelay});					 		
 				readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});					 		
+				readingsBulkUpdate( $hash, "departure_" . $i . "_number", $item->{number});													
 				if (defined($timeoffset)) {
 					my $temp = $item->{departureTimeInMinutes} - $timeoffset;
 					readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);							
