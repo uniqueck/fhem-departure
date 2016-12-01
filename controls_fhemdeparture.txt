@@ -1,2 +1,2 @@
 DEL ./FHEM/98_Departure.pm
-UPD 2016-11-09_18:54:23 11460 FHEM/98_Departure.pm
+UPD 2016-12-02_00:49:32 11553 FHEM/98_Departure.pm
