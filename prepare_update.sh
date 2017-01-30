@@ -7,9 +7,11 @@ find ./FHEM -type f \( ! -iname ".*" \) -print0 | while IFS= read -r -d '' f;
    echo ${out//.\//} >> controls_fhemdeparture.txt
 done
 
+actualLocalBranch=$(git branch | grep \* | cut -d ' ' -f2)
+
 # CHANGED file
 echo "FHEM Departure last change:" > CHANGED
 echo $(date +"%Y-%m-%d") >> CHANGED
-echo " - $(git log -1 --pretty=%B)" >> CHANGED
+echo " - $(git log origin/${actualLocalBranch}..${actualLocalBranch} --pretty=%B)" >> CHANGED
 
 
