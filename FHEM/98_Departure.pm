@@ -197,7 +197,7 @@ sub Departure_GetDeparture($) {
 	my $max_readings = AttrVal($name, "departure_max_readings", 10);
 
 
-	if($hash->{STATE} eq 'active' || $hash->{STATE} eq 'initialized') {
+	if($hash->{STATE} ne 'disabled') {
        		my $nt = gettimeofday()+$hash->{Interval};
        		$hash->{TRIGGERTIME} = $nt;
        		$hash->{TRIGGERTIME_FMT} = FmtDateTime($nt);
