@@ -306,7 +306,7 @@ sub Departure_Set($@) {
          my $nt	= gettimeofday()+$hash->{Interval};
          $hash->{TRIGGERTIME} = $nt;
          $hash->{TRIGGERTIME_FMT} = FmtDateTime($nt);
-         if($hash->{STATE} eq 'active' || $hash->{STATE} eq 'initialized') {
+         if($hash->{STATE} ne 'disabled') {
             RemoveInternalTimer($hash);
             InternalTimer($nt, "Departure_GetDeparture", $hash, 0);
             Log3 $name, 3, "Departure_Set ($name) - restarted with new timer interval $hash->{Interval} (sec)";
