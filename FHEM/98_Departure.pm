@@ -264,6 +264,7 @@ sub Departure_ParseDeparture(@) {
 							
 			     readingsBeginUpdate($hash);
 			     my $i = 0;			
+           my $nextTime2GoSet = 0;  # flag to memorize if the time to go to reach the next train is already set
            my $destination_filter = AttrVal($name,"departure_destination_filter","");
 			     foreach my $item( @$res ) { 
               my $to = Encode::encode('UTF-8',$item->{to});
@@ -275,7 +276,11 @@ sub Departure_ParseDeparture(@) {
 				        readingsBulkUpdate( $hash, "departure_" . $i . "_number", $item->{number});													
 				        if (defined($timeoffset)) {
   					     my $temp = $item->{departureTimeInMinutes} - $timeoffset;
-					       readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);							
+					       readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);
+                 if($nextTime2GoSet == 0 && $temp>=0){
+                    readingsBulkUpdate( $hash, "departure_next_time2Go", $temp);     
+                    $nextTime2GoSet =1;
+                 }
 				        } 				
 				      $i++;			
             }
