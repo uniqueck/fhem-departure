@@ -37,6 +37,7 @@ sub Departure_Initialize($) {
 	. "departure_max_readings "
 	. "departure_time_to_go_to_station "
 	. "departure_use_delay_for_time:0,1 "
+  . "departure_destination_filter "
         . $readingFnAttributes;
 }
 
@@ -197,7 +198,7 @@ sub Departure_GetDeparture($) {
 	my $max_readings = AttrVal($name, "departure_max_readings", 10);
 
 
-	if($hash->{STATE} ne 'disabled') {
+	if($hash->{STATE} eq 'active' || $hash->{STATE} eq 'initialized') {
        		my $nt = gettimeofday()+$hash->{Interval};
        		$hash->{TRIGGERTIME} = $nt;
        		$hash->{TRIGGERTIME_FMT} = FmtDateTime($nt);
@@ -261,22 +262,26 @@ sub Departure_ParseDeparture(@) {
      			Log3 ($hash, 2, "$hash->{NAME}: error decoding departure response $@");
     		} else {	
 							
-			readingsBeginUpdate($hash);
-			my $i = 0;			
-			foreach my $item( @$res ) { 
-    				readingsBulkUpdate( $hash, "departure_" . $i . "_text", Encode::encode('UTF-8',$item->{to}));
-				readingsBulkUpdate( $hash, "departure_" . $i . "_time", $item->{departureTime});
-				readingsBulkUpdate( $hash, "departure_" . $i . "_delay", $item->{departureDelay});					 		
-				readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});					 		
-				readingsBulkUpdate( $hash, "departure_" . $i . "_number", $item->{number});													
-				if (defined($timeoffset)) {
-					my $temp = $item->{departureTimeInMinutes} - $timeoffset;
-					readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);							
-				} 				
-				$i++;			
-			}
-			readingsEndUpdate($hash,1); 
-    		}
+			     readingsBeginUpdate($hash);
+			     my $i = 0;			
+           my $destination_filter = AttrVal($name,"departure_destination_filter","");
+			     foreach my $item( @$res ) { 
+              my $to = Encode::encode('UTF-8',$item->{to});
+              if ($to=~/${destination_filter}/){
+                readingsBulkUpdate( $hash, "departure_" . $i . "_text", $to);
+				        readingsBulkUpdate( $hash, "departure_" . $i . "_time", $item->{departureTime});
+				        readingsBulkUpdate( $hash, "departure_" . $i . "_delay", $item->{departureDelay});					 		
+				        readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});					 		
+				        readingsBulkUpdate( $hash, "departure_" . $i . "_number", $item->{number});													
+				        if (defined($timeoffset)) {
+  					     my $temp = $item->{departureTimeInMinutes} - $timeoffset;
+					       readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);							
+				        } 				
+				      $i++;			
+            }
+			   }
+  			readingsEndUpdate($hash,1); 
+    	}
 		$hash->{STATE}='active' if($hash->{STATE} eq 'initialized' || $hash->{STATE} eq 'error');	
 	}
 	
