@@ -1,3 +1,3 @@
 FHEM Departure last change:
-2017-01-30
- - try again if an error occurs thx @MichaTe
+2017-02-02
+ - add attribute to filter specific destinations thx @unimatrix27
