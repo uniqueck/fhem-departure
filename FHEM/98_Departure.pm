@@ -37,6 +37,7 @@ sub Departure_Initialize($) {
 	. "departure_max_readings "
 	. "departure_time_to_go_to_station "
 	. "departure_use_delay_for_time:0,1 "
+  . "departure_destination_filter "
         . $readingFnAttributes;
 }
 
@@ -261,22 +262,31 @@ sub Departure_ParseDeparture(@) {
      			Log3 ($hash, 2, "$hash->{NAME}: error decoding departure response $@");
     		} else {	
 							
-			readingsBeginUpdate($hash);
-			my $i = 0;			
-			foreach my $item( @$res ) { 
-    				readingsBulkUpdate( $hash, "departure_" . $i . "_text", Encode::encode('UTF-8',$item->{to}));
-				readingsBulkUpdate( $hash, "departure_" . $i . "_time", $item->{departureTime});
-				readingsBulkUpdate( $hash, "departure_" . $i . "_delay", $item->{departureDelay});					 		
-				readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});					 		
-				readingsBulkUpdate( $hash, "departure_" . $i . "_number", $item->{number});													
-				if (defined($timeoffset)) {
-					my $temp = $item->{departureTimeInMinutes} - $timeoffset;
-					readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);							
-				} 				
-				$i++;			
-			}
-			readingsEndUpdate($hash,1); 
-    		}
+			     readingsBeginUpdate($hash);
+			     my $i = 0;			
+           my $nextTime2GoSet = 0;  # flag to memorize if the time to go to reach the next train is already set
+           my $destination_filter = AttrVal($name,"departure_destination_filter","");
+			     foreach my $item( @$res ) { 
+              my $to = Encode::encode('UTF-8',$item->{to});
+              if ($to=~/${destination_filter}/){
+                readingsBulkUpdate( $hash, "departure_" . $i . "_text", $to);
+				        readingsBulkUpdate( $hash, "departure_" . $i . "_time", $item->{departureTime});
+				        readingsBulkUpdate( $hash, "departure_" . $i . "_delay", $item->{departureDelay});					 		
+				        readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});					 		
+				        readingsBulkUpdate( $hash, "departure_" . $i . "_number", $item->{number});													
+				        if (defined($timeoffset)) {
+  					     my $temp = $item->{departureTimeInMinutes} - $timeoffset;
+					       readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);
+                 if($nextTime2GoSet == 0 && $temp>=0){
+                    readingsBulkUpdate( $hash, "departure_next_time2Go", $temp);     
+                    $nextTime2GoSet =1;
+                 }
+				        } 				
+				      $i++;			
+            }
+			   }
+  			readingsEndUpdate($hash,1); 
+    	}
 		$hash->{STATE}='active' if($hash->{STATE} eq 'initialized' || $hash->{STATE} eq 'error');	
 	}
 	
@@ -301,7 +311,7 @@ sub Departure_Set($@) {
          my $nt	= gettimeofday()+$hash->{Interval};
          $hash->{TRIGGERTIME} = $nt;
          $hash->{TRIGGERTIME_FMT} = FmtDateTime($nt);
-         if($hash->{STATE} eq 'active' || $hash->{STATE} eq 'initialized') {
+         if($hash->{STATE} ne 'disabled') {
             RemoveInternalTimer($hash);
             InternalTimer($nt, "Departure_GetDeparture", $hash, 0);
             Log3 $name, 3, "Departure_Set ($name) - restarted with new timer interval $hash->{Interval} (sec)";
