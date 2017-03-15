@@ -237,7 +237,7 @@ sub Departure_ParseDeparture(@) {
 	my $name = $hash->{NAME};
 	my $timeoffset = AttrVal($name, "departure_time_to_go_to_station",undef); 	
 	my $res;
-	fhem("deletereading $hash->{NAME} departure.*", 1);
+	fhem("deletereading $name departure.*", 1);
 	Log3 ($hash, 4, "$hash->{NAME}: status code $param->{code}");	
 	if ($param->{code} != 200) {
 		readingsBeginUpdate($hash);
@@ -259,30 +259,30 @@ sub Departure_ParseDeparture(@) {
       			$res = JSON->new->utf8(1)->decode($data);
     		};
 		if ($@) {
-     			Log3 ($hash, 2, "$hash->{NAME}: error decoding departure response $@");
+     			Log3 ($hash, 2, "$name: error decoding departure response $@");
     		} else {	
 							
 			     readingsBeginUpdate($hash);
 			     my $i = 0;			
            my $nextTime2GoSet = 0;  # flag to memorize if the time to go to reach the next train is already set
-           my $destination_filter = AttrVal($name,"departure_destination_filter","");
-			     foreach my $item( @$res ) { 
+           my $destination_filter = AttrVal($name,"departure_destination_filter",undef);
+	     foreach my $item( @$res ) { 
               my $to = Encode::encode('UTF-8',$item->{to});
-              if ($to=~/${destination_filter}/){
-                readingsBulkUpdate( $hash, "departure_" . $i . "_text", $to);
-				        readingsBulkUpdate( $hash, "departure_" . $i . "_time", $item->{departureTime});
-				        readingsBulkUpdate( $hash, "departure_" . $i . "_delay", $item->{departureDelay});					 		
-				        readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});					 		
-				        readingsBulkUpdate( $hash, "departure_" . $i . "_number", $item->{number});													
-				        if (defined($timeoffset)) {
-  					     my $temp = $item->{departureTimeInMinutes} - $timeoffset;
-					       readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);
-                 if($nextTime2GoSet == 0 && $temp>=0){
-                    readingsBulkUpdate( $hash, "departure_next_time2Go", $temp);     
-                    $nextTime2GoSet =1;
-                 }
-				        } 				
-				      $i++;			
+              if ((defined($destination_filter) && ($to=~/${destination_filter}/)) || !defined($destination_filter)) {
+			readingsBulkUpdate( $hash, "departure_" . $i . "_text", $to);
+		        readingsBulkUpdate( $hash, "departure_" . $i . "_time", $item->{departureTime});
+		        readingsBulkUpdate( $hash, "departure_" . $i . "_delay", $item->{departureDelay});					 		
+		        readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});					 		
+		        readingsBulkUpdate( $hash, "departure_" . $i . "_number", $item->{number});													
+	        if (defined($timeoffset)) {
+		     	my $temp = $item->{departureTimeInMinutes} - $timeoffset;
+		       	readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);
+         		if($nextTime2GoSet == 0 && $temp>=0){
+                	    	readingsBulkUpdate( $hash, "departure_next_time2Go", $temp);     
+                	    	$nextTime2GoSet =1;
+ 			}
+	        } 				
+	      $i++;			
             }
 			   }
   			readingsEndUpdate($hash,1); 
