@@ -1,4 +1,4 @@
-# $Id: 98_Departure.pm 37909 2017-03-16 00:16:00Z uniqueck $
+# $Id: 98_Departure.pm 37909 2017-03-16 00:30:00Z uniqueck $
 ##############################################################################
 #
 #     98_Departure.pm
@@ -9,7 +9,8 @@
 
 use strict;                          
 use warnings;                        
-use Time::HiRes qw(gettimeofday);    
+use Time::HiRes qw(gettimeofday);
+use Time::Piece;    
 use HttpUtils;
 
 use LWP;
@@ -31,13 +32,14 @@ sub Departure_Initialize($) {
     $hash->{ReadFn}     = 'Departure_Read';
 
     $hash->{AttrList} =
-          "departure_provider "
+	  "disable:0,1 "
+        . "departure_provider "
 	. "departure_base_url "
 	. "departure_departure "
 	. "departure_max_readings "
 	. "departure_time_to_go_to_station "
 	. "departure_use_delay_for_time:0,1 "
-  . "departure_destination_filter "
+  	. "departure_destination_filter "
         . $readingFnAttributes;
 }
 
@@ -271,6 +273,7 @@ sub Departure_ParseDeparture(@) {
               if ((defined($destination_filter) && ($to=~/${destination_filter}/)) || !defined($destination_filter)) {
 			readingsBulkUpdate( $hash, "departure_" . $i . "_text", $to);
 		        readingsBulkUpdate( $hash, "departure_" . $i . "_time", $item->{departureTime});
+			readingsBulkUpdate( $hash, "departure_" . $i . "_time_human_readable",  Time::Piece->strptime($item->{departureTime},"%Y-%m-%dT%H:%M%z")->strftime("%d.%m.%Y, %H:%M Uhr"));
 		        readingsBulkUpdate( $hash, "departure_" . $i . "_delay", $item->{departureDelay});					 		
 		        readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});					 		
 		        readingsBulkUpdate( $hash, "departure_" . $i . "_number", $item->{number});													
@@ -298,38 +301,10 @@ sub Departure_Set($@) {
 
    my ($hash, $name, $cmd, @val) = @_;
 
-   my $list = "interval";
+   my $list = "";
    $list .= " update:noArg" if($hash->{STATE} ne 'disabled');
 
-   if ($cmd eq 'interval')
-   {
-      if (int @val == 1 && $val[0] > 10) 
-      {
-         $hash->{Interval} = $val[0];
-
-         # initial request after 2 secs, there timer is set to interval for further update
-         my $nt	= gettimeofday()+$hash->{Interval};
-         $hash->{TRIGGERTIME} = $nt;
-         $hash->{TRIGGERTIME_FMT} = FmtDateTime($nt);
-         if($hash->{STATE} ne 'disabled') {
-            RemoveInternalTimer($hash);
-            InternalTimer($nt, "Departure_GetDeparture", $hash, 0);
-            Log3 $name, 3, "Departure_Set ($name) - restarted with new timer interval $hash->{Interval} (sec)";
-         } else {
-            Log3 $name, 3, "Departure_Set ($name) - new timer interval $hash->{Interval} (sec) will be active when starting/enabling";
-         }
-		 
-         return undef;
-
-      } elsif (int @val == 1 && $val[0] <= 10) {
-          Log3 $name, 4, "Departure_Set ($name) - interval: $val[0] (sec) to small, continuing with $hash->{Interval} (sec)";
-          return "Departure_Set - interval too small, please use something > 10, defined is $hash->{Interval} (sec)";
-      } else {
-          Log3 $name, 4, "Departure_Set ($name) - interval: no interval (sec) defined, continuing with $hash->{Interval} (sec)";
-          return "Departure_Set - no interval (sec) defined, please use something > 10, defined is $hash->{Interval} (sec)";
-      }
-   } # if interval
-   elsif ($cmd eq 'update')
+   if ($cmd eq 'update')
    {
       Departure_GetDeparture($hash);
 
