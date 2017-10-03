@@ -1,5 +1,5 @@
 FHEM Departure last change:
-2017-03-16
- - create new id line
+2017-10-03
+ - removed useless attr base_url and add optional parameter for define
 
-fix an error, if no destination filter is set
+remove unused set method interval and add new attribute disable
