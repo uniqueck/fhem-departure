@@ -4,13 +4,13 @@
 #     98_Departure.pm
 #
 #     Calls the URL: http://transportrest-sbiermann.rhcloud.com/departure?from=<stationId>&limit=<departure_max_readings>
-#     with the given attributes. 
+#     with the given attributes.
 ##############################################################################
 
-use strict;                          
-use warnings;                        
+use strict;
+use warnings;
 use Time::HiRes qw(gettimeofday);
-use Time::Piece;    
+use Time::Piece;
 use HttpUtils;
 
 use LWP;
@@ -47,16 +47,20 @@ sub Departure_Define($$) {
 
     my ( $hash, $def ) = @_;
     my @a = split( "[ \t][ \t]*", $def );
-    
-    return "Departure_Define - too few parameters: define <name> Departure <interval>" if ( @a < 3 );
+
+    return "Departure_Define - too few parameters: define <name> Departure <interval> <baseurl>" if ( @a < 3 || @a > 4);
 
     my $name 	= $a[0];
     my $inter	= 300;
+    my $url = "https://transport.stefan-biermann.de/publictransportapi/rest";
 
-    if(int(@a) == 3) { 
-       $inter = int($a[2]); 
-       if ($inter < 10 && $inter) {
+    if(int(@a) ge 3) {
+       $inter = int($a[2]);
+       if ($inter lt 10 && $inter) {
           return "Departure_Define - interval too small, please use something > 10 (sec), default is 300 (sec)";
+       }
+       if ($a[3]) {
+         $url = $a[3];
        }
     }
 
@@ -71,44 +75,44 @@ sub Departure_Define($$) {
     RemoveInternalTimer($hash);
     InternalTimer($nt, "Departure_GetDeparture", $hash, 0);
 
-    $hash->{BASE_URL} = AttrVal($name, "departure_base_url", 'http://transportrest-sbiermann.rhcloud.com');
+    $hash->{BASE_URL} = $url;
 
     $hash->{STATE} = 'initialized';
-    
+
     return undef;
 }
 
 sub Departure_Undef($$) {
-    my ($hash, $arg) = @_; 
+    my ($hash, $arg) = @_;
     my $name = $hash->{NAME};
 
     RemoveInternalTimer($hash);
 
     Log3 $name, 3, "Departure_Undef ($name) - removed";
 
-    return undef;                  
+    return undef;
 }
 
 sub Departure_Get($@) {
 
 	my ($hash, $name, $cmd, @val) = @_;
-   	
+
 	my $list = "provider:noArg ";
 	$list .= "stationId" if AttrVal($name,'departure_provider',0);
-	
+
 	if ($cmd eq 'provider') {
-	
+
 		return Departure_Get_Provider($hash);
 	}
 	if ($cmd eq 'stationId') {
-		Log3 ($hash, 3, "$name: $val[0]"); 		
+		Log3 ($hash, 3, "$name: $val[0]");
 		return Departure_Find_Stations($hash, $val[0]);
 	}
-	return "Departure_Get ($name) - Unknown argument $cmd or wrong parameter(s), choose one of $list"; 	
+	return "Departure_Get ($name) - Unknown argument $cmd or wrong parameter(s), choose one of $list";
 }
 
 sub Departure_Find_Stations($$) {
-	
+
 	my ($hash, $val) = @_;
 	my $name = $hash->{NAME};
 	my $res;
@@ -123,32 +127,32 @@ sub Departure_Find_Stations($$) {
 	};
 	Log3 $name, 4, "$name: get find stations request " . $param->{url};
 	my ($err, $data) = HttpUtils_BlockingGet($param);
-	Log3 ($hash, 4, "$hash->{NAME}: status code $param->{code}");	
+	Log3 ($hash, 4, "$hash->{NAME}: status code $param->{code}");
 	if ($param->{code} != 200) {
 		if ($err) {
 			Log3 ($hash, 2, "$hash->{NAME}: error $err retriving stations");
-		} elsif ($data) {		
+		} elsif ($data) {
 			Log3 ($hash, 2, "$hash->{NAME}: error $data retriving stations");
-		}		
+		}
 	} else {
 		Log3 ($hash, 4, "$name: got find stations response $data");
-		eval { 
+		eval {
 			$res = JSON->new->utf8(1)->decode($data);
 		};
 		if ($@) {
 			Log3 ($hash, 2, "$hash->{NAME}: error decoding stations response $@");
 		} else {
-			Log3 ($hash, 5, "$hash->{NAME}: stations response data $res");			
+			Log3 ($hash, 5, "$hash->{NAME}: stations response data $res");
 			foreach my $item (@{$res}) {
 				# nur solche zulassen, welche auf stationen sind
 				if ($item->{type} eq 'STATION') {
-					my $station = Encode::encode('UTF-8',$item->{place} . "-" . $item->{name});						
-					Log3 ($hash, 5, "$hash->{NAME}: stations $item->{type} $item->{name}");					
-					$result .= $item->{id} ."\t" . $station . "\n";				
+					my $station = Encode::encode('UTF-8',$item->{place} . "-" . $item->{name});
+					Log3 ($hash, 5, "$hash->{NAME}: stations $item->{type} $item->{name}");
+					$result .= $item->{id} ."\t" . $station . "\n";
 				}
-			} # end foreach 
+			} # end foreach
 		} # end else
-	} # end else	
+	} # end else
   return $result;
 
 }
@@ -174,17 +178,17 @@ sub Departure_Get_Provider($) {
     	Log3 ($hash, 2, "$hash->{NAME}: error $err retriving provider");
   } elsif ($data) {
   	Log3 ($hash, 5, "$hash->{NAME}: provider response data $data");
-    	eval { 
+    	eval {
       		$res = JSON->new->utf8(1)->decode($data);
     	};
 	if ($@) {
      		Log3 ($hash, 2, "$hash->{NAME}: error decoding provider response $@");
     	} else {
-		$result = "";		
-		foreach my $item( @$res ) { 
-    			Log3 ($hash, 5, "$hash->{NAME}: provider name $item->{name} provider aClass $item->{aClass}");		
-			$result .= $item->{name} ."\t" . $item->{aClass} . "\n"; 		
-		} 
+		$result = "";
+		foreach my $item( @$res ) {
+    			Log3 ($hash, 5, "$hash->{NAME}: provider name $item->{name} provider aClass $item->{aClass}");
+			$result .= $item->{name} ."\t" . $item->{aClass} . "\n";
+		}
     	}
   }
   return $result;
@@ -192,7 +196,7 @@ sub Departure_Get_Provider($) {
 
 
 sub Departure_GetDeparture($) {
-	
+
 	my ($hash) = @_;
 	my $name = $hash->{NAME};
 	my $departure = AttrVal($name, "departure_departure", undef);
@@ -207,8 +211,8 @@ sub Departure_GetDeparture($) {
        		RemoveInternalTimer($hash);
        		InternalTimer($nt, "Departure_GetDeparture", $hash, 1) if (int($hash->{Interval}) > 0);
        		Log3 $name, 5, "Departure ($name) - DB timetable: restartet InternalTimer with $hash->{Interval}";
-    	}	
- 	
+    	}
+
 	unless(defined($provider))
     	{
         	Log3 $name, 3, "Departure ($name) - GetDeparture: no valid provider defined";
@@ -237,62 +241,62 @@ sub Departure_ParseDeparture(@) {
 	my ($param, $err, $data) = @_;
 	my $hash = $param->{hash};
 	my $name = $hash->{NAME};
-	my $timeoffset = AttrVal($name, "departure_time_to_go_to_station",undef); 	
+	my $timeoffset = AttrVal($name, "departure_time_to_go_to_station",undef);
 	my $res;
 	fhem("deletereading $name departure.*", 1);
-	Log3 ($hash, 4, "$hash->{NAME}: status code $param->{code}");	
+	Log3 ($hash, 4, "$hash->{NAME}: status code $param->{code}");
 	if ($param->{code} != 200) {
 		readingsBeginUpdate($hash);
-		readingsBulkUpdate( $hash, "departure_error_http_status_code", $param->{code});								
-		readingsBulkUpdate( $hash, "departure_error_url", $param->{url});		
+		readingsBulkUpdate( $hash, "departure_error_http_status_code", $param->{code});
+		readingsBulkUpdate( $hash, "departure_error_url", $param->{url});
 		if ($err) {
 			Log3 ($hash, 2, "$hash->{NAME}: error $err retriving departure");
-			readingsBulkUpdate( $hash, "departure_error_http_status_text", $err);		
+			readingsBulkUpdate( $hash, "departure_error_http_status_text", $err);
 		} elsif ($data) {
 			Log3 ($hash, 2, "$hash->{NAME}: error $data retriving departure");
-			readingsBulkUpdate( $hash, "departure_error_http_status_text", $data);		
+			readingsBulkUpdate( $hash, "departure_error_http_status_text", $data);
 		}
 		readingsEndUpdate($hash,1);
 		$hash->{STATE}='error' if($hash->{STATE} eq 'initialized' || $hash->{STATE} eq 'active');
-	
+
     	} elsif ($data) {
 		Log3 ($hash, 5, "$hash->{NAME}: departure response data $data");
-		eval { 
+		eval {
       			$res = JSON->new->utf8(1)->decode($data);
     		};
 		if ($@) {
      			Log3 ($hash, 2, "$name: error decoding departure response $@");
-    		} else {	
-							
+    		} else {
+
 			     readingsBeginUpdate($hash);
-			     my $i = 0;			
+			     my $i = 0;
            my $nextTime2GoSet = 0;  # flag to memorize if the time to go to reach the next train is already set
            my $destination_filter = AttrVal($name,"departure_destination_filter",undef);
-	     foreach my $item( @$res ) { 
+	     foreach my $item( @$res ) {
               my $to = Encode::encode('UTF-8',$item->{to});
               if ((defined($destination_filter) && ($to=~/${destination_filter}/)) || !defined($destination_filter)) {
 			readingsBulkUpdate( $hash, "departure_" . $i . "_text", $to);
-		        readingsBulkUpdate( $hash, "departure_" . $i . "_time", $item->{departureTime});
+	        	readingsBulkUpdate( $hash, "departure_" . $i . "_time", $item->{departureTime});
 			readingsBulkUpdate( $hash, "departure_" . $i . "_time_human_readable",  Time::Piece->strptime($item->{departureTime},"%Y-%m-%dT%H:%M%z")->strftime("%d.%m.%Y, %H:%M Uhr"));
-		        readingsBulkUpdate( $hash, "departure_" . $i . "_delay", $item->{departureDelay});					 		
-		        readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});					 		
-		        readingsBulkUpdate( $hash, "departure_" . $i . "_number", $item->{number});													
+	        	readingsBulkUpdate( $hash, "departure_" . $i . "_delay", $item->{departureDelay});
+	        	readingsBulkUpdate( $hash, "departure_" . $i . "_timeInMinutes", $item->{departureTimeInMinutes});
+	        	readingsBulkUpdate( $hash, "departure_" . $i . "_number", Encode::encode('UTF-8',$item->{number}));
 	        if (defined($timeoffset)) {
 		     	my $temp = $item->{departureTimeInMinutes} - $timeoffset;
 		       	readingsBulkUpdate( $hash, "departure_" . $i . "_time2Go", $temp);
          		if($nextTime2GoSet == 0 && $temp>=0){
-                	    	readingsBulkUpdate( $hash, "departure_next_time2Go", $temp);     
+                	    	readingsBulkUpdate( $hash, "departure_next_time2Go", $temp);
                 	    	$nextTime2GoSet =1;
  			}
-	        } 				
-	      $i++;			
+	        }
+	      $i++;
             }
 			   }
-  			readingsEndUpdate($hash,1); 
+  			readingsEndUpdate($hash,1);
     	}
-		$hash->{STATE}='active' if($hash->{STATE} eq 'initialized' || $hash->{STATE} eq 'error');	
+		$hash->{STATE}='active' if($hash->{STATE} eq 'initialized' || $hash->{STATE} eq 'error');
 	}
-	
+
 	return undef;
 }
 
@@ -320,12 +324,12 @@ sub Departure_Attr(@) {
    my $hash = $defs{$name};
 
    if($cmd eq "set") {
-      $attr{$name}{$attrName} = $attrVal;   
+      $attr{$name}{$attrName} = $attrVal;
       Log3 $name, 4, "Departure_Attr ($name) - set $attrName : $attrVal";
    } elsif ($cmd eq "del") {
       Log3 $name, 4, "Departure_Attr ($name) - deleted $attrName : $attrVal";
    }
-   
+
 
    return undef;
 }
